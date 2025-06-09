@@ -3,6 +3,9 @@ package io.github.beeebea.fastmove.mixin;
 import io.github.beeebea.fastmove.FastMove;
 import io.github.beeebea.fastmove.IFastPlayer;
 import io.github.beeebea.fastmove.MoveState;
+import io.github.beeebea.fastmove.compat.CombatRollCompat;
+import io.github.beeebea.fastmove.compat.ParagliderCompat;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.entity.*;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.damage.DeathMessageType;
@@ -134,10 +137,10 @@ public abstract class PlayerEntityMixin extends LivingEntity implements IFastPla
                 if (fastmove_velocityToMovementInput(flatVel, getYaw()).dotProduct(lastWallDir) < 0) {
                     addVelocity(wallVel.multiply(-0.1, 0, -0.1));
                 }
-                addVelocity(new Vec3d(0, -vel.y * (1 - ((double) wallRunCounter / FastMove.getConfig().getWallRunDurationTicks())), 0));
+                addVelocity(new Vec3d(0, -vel.y * (1 - ((double) wallRunCounter / FastMove.getConfig().wallRunDurationTicks())), 0));
                 bonusVelocity = Vec3d.ZERO;
                 if (!FastMove.INPUT.ismoveUpKeyPressed()) {
-                    double velocityMult = FastMove.getConfig().getWallRunSpeedBoostMultiplier();
+                    double velocityMult = FastMove.getConfig().wallRunSpeedBoostMultiplier();
                     addVelocity(wallVel.multiply(0.3 * velocityMult, 0, 0.3 * velocityMult).add(new Vec3d(0, 0.4 * velocityMult, 0)));
                     moveState = MoveState.NONE;
                 }
@@ -146,7 +149,7 @@ public abstract class PlayerEntityMixin extends LivingEntity implements IFastPla
             wallRunCounter = 0;
             if (!isOnGround() && FastMove.INPUT.ismoveUpKeyPressed() && hasWall && vel.y <= 0) {
                 moveState = MoveState.WALLRUNNING_LEFT;
-                hungerManager.addExhaustion(FastMove.getConfig().getWallRunStaminaCost());
+                hungerManager.addExhaustion(FastMove.getConfig().wallRunStaminaCost());
             }
         }
     }
@@ -188,6 +191,7 @@ public abstract class PlayerEntityMixin extends LivingEntity implements IFastPla
         return !isSpectator() && (canElytra || !isFallFlying()) && (canSwim || !isTouchingWater()) && !isClimbing() && !abilities.flying;
     }
 
+
     @Inject(method = "getDimensions", at = @At("HEAD"), cancellable = true)
     public void fastmove_getDimensions(EntityPose pose, CallbackInfoReturnable<EntityDimensions> cir) {
         var moveState = fastmove_getMoveState();
@@ -202,7 +206,7 @@ public abstract class PlayerEntityMixin extends LivingEntity implements IFastPla
 
     @Inject(method = "tick" , at = @At("HEAD"))
     private void fastmove_tick(CallbackInfo info) {
-        if(!FastMove.getConfig().enableFastMove) return;
+        if(!FastMove.getConfig().enableFastMove()) return;
 
         if(this.isMainPlayer()) {
             if (abilities.flying || getControllingVehicle() != null) {
@@ -225,7 +229,7 @@ public abstract class PlayerEntityMixin extends LivingEntity implements IFastPla
                 }
             }
 
-            if(FastMove.getConfig().wallRunEnabled) fastmove_WallRun();
+            if(FastMove.getConfig().wallRunEnabled()) fastmove_WallRun();
 
             addVelocity(bonusVelocity);
             bonusVelocity = bonusVelocity.multiply(bonusDecay,0,bonusDecay);
@@ -236,7 +240,7 @@ public abstract class PlayerEntityMixin extends LivingEntity implements IFastPla
 
     @Inject(method = "tick" , at = @At("TAIL"))
     private void fastmove_tick_tail(CallbackInfo info) {
-        if(!FastMove.getConfig().enableFastMove) return;
+        if(!FastMove.getConfig().enableFastMove()) return;
         if(moveState == MoveState.PRONE || moveState == MoveState.ROLLING) setPose(EntityPose.SWIMMING);
         if(diveCooldown > 0) diveCooldown--;
         if(slideCooldown > 0) slideCooldown--;
@@ -244,25 +248,26 @@ public abstract class PlayerEntityMixin extends LivingEntity implements IFastPla
 
     @Inject(method = "travel", at = @At("HEAD"))
     private void fastmove_travel(Vec3d movementInput, CallbackInfo info) {
-        if (!isMainPlayer() || !FastMove.getConfig().enableFastMove || abilities.flying || getControllingVehicle() != null) return;
+        if (!isMainPlayer() || !FastMove.getConfig().enableFastMove() || abilities.flying || getControllingVehicle() != null) return;
         fastmove_lastSprintingState = isSprinting();
         if(FastMove.INPUT.ismoveDownKeyPressed()){
             if(!FastMove.INPUT.ismoveDownKeyPressedLastTick()) {
                 var conf = FastMove.getConfig();
-                if (diveCooldown == 0 && conf.diveRollEnabled && !isOnGround()
+                if (diveCooldown == 0 && fastmove_hasStamina(conf.diveRollStaminaCost(), true) && conf.diveRollEnabled() && !isOnGround()
                                         && getVelocity().multiply(1, 0, 1).lengthSquared() > 0.05
-                                        && fastmove_isValidForMovement(conf.diveRollWhenSwimming, conf.diveRollWhenFlying)) {
-                    diveCooldown = conf.getDiveRollCoolDown();
-                    hungerManager.addExhaustion(conf.getDiveRollStaminaCost());
+                                        && fastmove_isValidForMovement(conf.diveRollWhenSwimming(), conf.diveRollWhenFlying())) {
+                    diveCooldown = conf.diveRollCoolDown();
+                    fastmove_useStamina(conf.diveRollStaminaCost(),true);
                     moveState = MoveState.ROLLING;
-                    bonusVelocity = fastmove_movementInputToVelocity(new Vec3d(0, 0, 1), 0.1f * conf.getDiveRollSpeedBoostMultiplier(), getYaw());
+                    bonusVelocity = fastmove_movementInputToVelocity(new Vec3d(0, 0, 1), 0.1f * conf.diveRollSpeedBoostMultiplier(), getYaw());
                     setSprinting(true);
-                } else if (slideCooldown == 0 && conf.slideEnabled && fastmove_lastSprintingState
-                                        && fastmove_isValidForMovement(false, false) ) {
-                    slideCooldown = conf.getSlideCoolDown();
-                    hungerManager.addExhaustion(conf.getSlideStaminaCost());
+
+                } else if (slideCooldown == 0 && fastmove_hasStamina(conf.slideStaminaCost(), false)  && conf.slideEnabled() && fastmove_lastSprintingState
+                                        && fastmove_isValidForMovement(false, false) && isOnGround()) {
+                    slideCooldown = conf.slideCoolDown();
+                    fastmove_useStamina(conf.slideStaminaCost(),false);
                     moveState = MoveState.SLIDING;
-                    bonusVelocity = fastmove_movementInputToVelocity(new Vec3d(0,0,1), 0.2f * conf.getSlideSpeedBoostMultiplier(), getYaw());
+                    bonusVelocity = fastmove_movementInputToVelocity(new Vec3d(0,0,1), 0.2f * conf.slideSpeedBoostMultiplier(), getYaw());
                     setSprinting(true);
                 }
             }
@@ -301,6 +306,32 @@ public abstract class PlayerEntityMixin extends LivingEntity implements IFastPla
         if(source.getType().deathMessageType() == DeathMessageType.FALL_VARIANTS && moveState == MoveState.ROLLING){
             cir.setReturnValue(false);
             cir.cancel();
+        }
+    }
+
+    private void fastmove_useStamina(int amount, boolean isRoll){
+        var conf = FastMove.getConfig();
+        if(FabricLoader.getInstance().isModLoaded("paraglider") && conf.useParaglider()){
+            ParagliderCompat.useParagliderStamina(amount);
+        }
+        else if(isRoll && FabricLoader.getInstance().isModLoaded("combatroll") && conf.useCombatRoll()){
+            CombatRollCompat.useCombatRollStamina();
+        }
+        else{
+           hungerManager.addExhaustion(amount);
+        }
+
+    }
+    private boolean fastmove_hasStamina(int amount, boolean isRoll){
+        var conf = FastMove.getConfig();
+        if(FabricLoader.getInstance().isModLoaded("paraglider") && conf.useParaglider()){
+            return ParagliderCompat.hasParagliderStamina();
+        }
+        else if(isRoll && FabricLoader.getInstance().isModLoaded("combatroll") && conf.useCombatRoll()){
+            return CombatRollCompat.hasCombatRollStamina();
+        }
+        else{
+            return hungerManager.getFoodLevel() > 0;
         }
     }
 }

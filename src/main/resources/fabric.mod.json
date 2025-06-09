@@ -18,9 +18,6 @@
     ],
     "main": [
       "io.github.beeebea.fastmove.FastMove"
-    ],
-    "ukulib": [
-      "io.github.beeebea.fastmove.config.UkulibHook"
     ]
   },
   "mixins": [

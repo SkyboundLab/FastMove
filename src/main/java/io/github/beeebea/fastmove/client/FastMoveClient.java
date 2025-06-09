@@ -6,20 +6,23 @@ import dev.kosmx.playerAnim.core.data.KeyframeAnimation;
 import dev.kosmx.playerAnim.core.util.Ease;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry;
 import io.github.beeebea.fastmove.*;
-import io.github.beeebea.fastmove.config.FastMoveConfig;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.resource.ResourceType;
 import net.minecraft.util.Identifier;
-import net.uku3lig.ukulib.config.ConfigManager;
+
 import java.util.Map;
 
 public class FastMoveClient extends FastMove implements ClientModInitializer {
     private static final Map<String, KeyframeAnimation> _animations = new java.util.HashMap<>();
-    public static final ConfigManager<FastMoveConfig> CONFIG_MANAGER = ConfigManager.createDefault(FastMoveConfig.class, FastMove.MOD_ID);
 
     @Override
     public void onInitializeClient() {
@@ -47,16 +50,7 @@ public class FastMoveClient extends FastMove implements ClientModInitializer {
                 //LOGGER.info("found animationContainers");
 
                 if(_animations.isEmpty()){
-                    //LOGGER.info("loading animations");
-                    for(var entry : MoveState.STATES.values()){
-                        //LOGGER.info("trying animation: " + entry.name);
-                        var name = entry.name;
-                        if(name.equals("none")) continue;
-                        KeyframeAnimation animation = PlayerAnimationRegistry.getAnimation(new Identifier(MOD_ID, entry.name));
-                        if(animation == null) continue;
-                        //LOGGER.info("found animation: " + entry.name);
-                        _animations.put(entry.name, animation);
-                    }
+                    UpdateAnimations();
                 }
 
                 var fade = AbstractFadeModifier.standardFadeIn(10, Ease.INOUTQUAD);
@@ -75,9 +69,6 @@ public class FastMoveClient extends FastMove implements ClientModInitializer {
                 animationContainer.replaceAnimationWithFade(fade, new KeyframeAnimationPlayer(anim));
             }
         };
-
-        CONFIG = CONFIG_MANAGER::getConfig;
-
         //register receivers
         ClientPlayNetworking.registerGlobalReceiver(FastMove.MOVE_STATE, (client, handler, buf, responseSender) -> {
             if (client.world != null) {
@@ -89,29 +80,31 @@ public class FastMoveClient extends FastMove implements ClientModInitializer {
             }
         });
 
-        //Set config on join
-        ClientPlayNetworking.registerGlobalReceiver(FastMove.CONFIG_STATE, (client, handler, buf, responseSender) -> {
-            serverConfig = new FastMoveConfig();
-            serverConfig.enableFastMove = buf.readBoolean();
-            serverConfig.diveRollEnabled = buf.readBoolean();
-            serverConfig.diveRollStaminaCost = buf.readInt();
-            serverConfig.diveRollSpeedBoostMultiplier = buf.readDouble();
-            serverConfig.diveRollCoolDown = buf.readInt();
-            serverConfig.diveRollWhenSwimming = buf.readBoolean();
-            serverConfig.diveRollWhenFlying = buf.readBoolean();
-            serverConfig.wallRunEnabled = buf.readBoolean();
-            serverConfig.wallRunStaminaCost = buf.readInt();
-            serverConfig.wallRunSpeedBoostMultiplier = buf.readDouble();
-            serverConfig.wallRunDurationTicks = buf.readInt();
-            serverConfig.slideEnabled = buf.readBoolean();
-            serverConfig.slideStaminaCost = buf.readInt();
-            serverConfig.slideSpeedBoostMultiplier = buf.readDouble();
-            serverConfig.slideCoolDown = buf.readInt();
-            LOGGER.info("Got config from server");
+
+        ResourceManagerHelper.registerBuiltinResourcePack(new Identifier("alt_slide_animation"), FabricLoader.getInstance().getModContainer(MOD_ID).orElseThrow(), ResourcePackActivationType.NORMAL);
+        ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
+            @Override
+            public void reload(ResourceManager manager) {
+                UpdateAnimations();
+            }
+
+            @Override
+            public Identifier getFabricId() {
+                return new Identifier(MOD_ID, "reload_animations");
+            }
         });
+    }
 
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> serverConfig = null);
-
+    public static void UpdateAnimations(){
+        for(var entry : MoveState.STATES.values()){
+            //LOGGER.info("trying animation: " + entry.name);
+            var name = entry.name;
+            if(name.equals("none")) continue;
+            KeyframeAnimation animation = PlayerAnimationRegistry.getAnimation(new Identifier(MOD_ID, entry.name));
+            if(animation == null) continue;
+            //LOGGER.info("found animation: " + entry.name);
+            _animations.put(entry.name, animation);
+        }
     }
 
 }

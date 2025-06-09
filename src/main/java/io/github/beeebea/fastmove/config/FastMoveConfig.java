@@ -1,68 +1,55 @@
 package io.github.beeebea.fastmove.config;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
+import io.github.beeebea.fastmove.FastMove;
+import io.wispforest.owo.config.Option;
+import io.wispforest.owo.config.annotation.Config;
+import io.wispforest.owo.config.annotation.Modmenu;
+import io.wispforest.owo.config.annotation.SectionHeader;
+import io.wispforest.owo.config.annotation.Sync;
 
-
-import java.io.Serializable;
-@Getter
-@Setter
-@AllArgsConstructor
-public class FastMoveConfig implements Serializable {
+@Modmenu(modId = FastMove.MOD_ID)
+@Config(name = "fastmove", wrapperName = "FMConfig")
+public class FastMoveConfig {
     public FastMoveConfig() {
-        enableFastMove = true;
-        diveRollEnabled = true;
-        diveRollStaminaCost = 50;
-        diveRollSpeedBoostMultiplier = 1;
-        diveRollCoolDown = 0;
-        diveRollWhenSwimming = false;
-        diveRollWhenFlying = false;
-        wallRunEnabled = true;
-        wallRunStaminaCost = 0;
-        wallRunSpeedBoostMultiplier = 1;
-        wallRunDurationTicks = 60;
-        slideEnabled = true;
-        slideStaminaCost = 10;
-        slideSpeedBoostMultiplier = 1;
-        slideCoolDown = 0;
 
     }
-    
-    public boolean enableFastMove;
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public boolean enableFastMove = true;
+    @SectionHeader("diveRoll")
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public boolean diveRollEnabled = true;
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public int diveRollStaminaCost = 20;
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public double diveRollSpeedBoostMultiplier = 1;
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public int diveRollCoolDown = 0;
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public boolean diveRollWhenSwimming = false;
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public boolean diveRollWhenFlying = false;
+    @SectionHeader("wallRun")
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public boolean wallRunEnabled = true;
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public int wallRunStaminaCost = 0;
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public double wallRunSpeedBoostMultiplier = 1;
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public int wallRunDurationTicks = 60;
+    @SectionHeader("slide")
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public boolean slideEnabled = true;
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public int slideStaminaCost = 10;
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public double slideSpeedBoostMultiplier = 1;
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public int slideCoolDown = 0;
+    @SectionHeader("compat")
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public boolean useCombatRoll = true;
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
+    public boolean useParaglider = true;
 
-    public boolean diveRollEnabled;
-    public int diveRollStaminaCost;
-    public double diveRollSpeedBoostMultiplier;
-    public int diveRollCoolDown;
-    public boolean diveRollWhenSwimming;
-    public boolean diveRollWhenFlying;
-
-    public boolean wallRunEnabled;
-    public int wallRunStaminaCost;
-    public double wallRunSpeedBoostMultiplier;
-    public int wallRunDurationTicks;
-
-    public boolean slideEnabled;
-    public int slideStaminaCost;
-    public double slideSpeedBoostMultiplier;
-    public int slideCoolDown;
-
-    public FastMoveConfig(FastMoveConfig config) {
-        enableFastMove = config.enableFastMove;
-        diveRollEnabled = config.diveRollEnabled;
-        diveRollStaminaCost = config.diveRollStaminaCost;
-        diveRollSpeedBoostMultiplier = config.diveRollSpeedBoostMultiplier;
-        diveRollCoolDown = config.diveRollCoolDown;
-        diveRollWhenSwimming = config.diveRollWhenSwimming;
-        diveRollWhenFlying = config.diveRollWhenFlying;
-        wallRunEnabled = config.wallRunEnabled;
-        wallRunStaminaCost = config.wallRunStaminaCost;
-        wallRunSpeedBoostMultiplier = config.wallRunSpeedBoostMultiplier;
-        wallRunDurationTicks = config.wallRunDurationTicks;
-        slideEnabled = config.slideEnabled;
-        slideStaminaCost = config.slideStaminaCost;
-        slideSpeedBoostMultiplier = config.slideSpeedBoostMultiplier;
-        slideCoolDown = config.slideCoolDown;
-    }
 }

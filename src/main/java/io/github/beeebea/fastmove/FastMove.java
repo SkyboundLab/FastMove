@@ -1,12 +1,11 @@
 package io.github.beeebea.fastmove;
 
-import io.github.beeebea.fastmove.config.FastMoveConfig;
-import io.github.beeebea.fastmove.config.IFastMoveConfig;
+import io.github.beeebea.fastmove.config.FMConfig;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
@@ -19,10 +18,9 @@ import java.util.UUID;
 
 public class FastMove implements ModInitializer {
     public static final String MOD_ID = "fastmove";
-    protected static FastMoveConfig serverConfig = null;
-    public static FastMoveConfig getConfig() {
-        if(serverConfig != null) return serverConfig;
-        return CONFIG.getConfig();
+    public static final FMConfig CONFIG = FMConfig.createAndLoad();
+    public static FMConfig getConfig() {
+        return CONFIG;
     }
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static final Identifier MOVE_STATE = new Identifier(MOD_ID, "move_state");
@@ -31,7 +29,6 @@ public class FastMove implements ModInitializer {
     private static final Queue<Runnable> _actionQueue = new LinkedList<>();
     public static IMoveStateUpdater moveStateUpdater;
     public static IFastMoveInput INPUT;
-    public static IFastMoveConfig CONFIG;
 
     @Override
     public void onInitialize() {
@@ -55,7 +52,6 @@ public class FastMove implements ModInitializer {
             public boolean ismoveDownKeyPressedLastTick() {return false;}
         };
 
-        CONFIG = FastMoveConfig::new;
 
         ServerPlayNetworking.registerGlobalReceiver(MOVE_STATE, (server, player, handler, buf, responseSender) -> {
             var uuid = buf.readUuid();
@@ -74,26 +70,6 @@ public class FastMove implements ModInitializer {
                     _actionQueue.poll().run();
                 }
             }
-        });
-        //send config to clients on join
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            var buf = PacketByteBufs.create();
-            buf.writeBoolean(getConfig().enableFastMove);
-            buf.writeBoolean(getConfig().diveRollEnabled);
-            buf.writeInt(getConfig().diveRollStaminaCost);
-            buf.writeDouble(getConfig().diveRollSpeedBoostMultiplier);
-            buf.writeInt(getConfig().diveRollCoolDown);
-            buf.writeBoolean(getConfig().diveRollWhenSwimming);
-            buf.writeBoolean(getConfig().diveRollWhenFlying);
-            buf.writeBoolean(getConfig().wallRunEnabled);
-            buf.writeInt(getConfig().wallRunStaminaCost);
-            buf.writeDouble(getConfig().wallRunSpeedBoostMultiplier);
-            buf.writeInt(getConfig().wallRunDurationTicks);
-            buf.writeBoolean(getConfig().slideEnabled);
-            buf.writeInt(getConfig().slideStaminaCost);
-            buf.writeDouble(getConfig().slideSpeedBoostMultiplier);
-            buf.writeInt(getConfig().slideCoolDown);
-            sender.sendPacket(CONFIG_STATE, buf);
         });
 
     }
@@ -116,6 +92,12 @@ public class FastMove implements ModInitializer {
                 }
             });
         }
+    }
+    public static boolean UseCombatRoll(){
+        return FabricLoader.getInstance().isModLoaded("combatroll");
+    }
+    public static boolean UseParaglider(){
+        return FabricLoader.getInstance().isModLoaded("paraglider");
     }
 
 }
