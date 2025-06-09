@@ -99,6 +99,11 @@ public class FastMove implements ModInitializer {
     }
 
     public static void SendToClients(PlayerEntity source, Identifier type, UUID uuid, int moveStateInt){
+        if (source == null || source.getServer() == null) {
+            LOGGER.warn("SendToClients called with null source or server");
+            return;
+        }
+
         synchronized (_queueLock) {
             _actionQueue.add(() -> {
                 for (PlayerEntity target : source.getServer().getPlayerManager().getPlayerList()) {
